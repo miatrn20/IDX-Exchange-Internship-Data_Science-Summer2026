@@ -1,2 +1,3 @@
 # Ignore all CSV files in the california directory
 california/**/*.csv
+.DS_Store

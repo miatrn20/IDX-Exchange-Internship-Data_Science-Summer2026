@@ -1,3 +1,4 @@
 # Ignore all CSV files in the california directory
 california/**/*.csv
 .DS_Store
+echo "cleaned_residential_single_family_week3.csv" >> .gitignore

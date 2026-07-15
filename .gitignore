@@ -2,3 +2,13 @@
 california/**/*.csv
 .DS_Store
 echo "cleaned_residential_single_family_week3.csv" >> .gitignore
+# Raw IDX/CRMLS data files
+california/*.csv
+
+# Cleaned/preprocessed datasets
+cleaned_residential_single_family_week3.csv
+train_week3_*.csv
+test_week3_*.csv
+
+# Large data files
+*.csv

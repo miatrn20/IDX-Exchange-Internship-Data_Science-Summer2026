@@ -1,12 +1,37 @@
 # California Home Sale Price Prediction
 
-This project predicts the closing price of residential single-family homes in California. It covers data exploration, leakage-aware preprocessing, time-based validation, baseline and tree-based model comparisons, geographic feature engineering, XGBoost tuning, and final error analysis.
+A data science internship project focused on predicting residential single-family home sale prices in California using historical CRMLS listing data, feature engineering, and machine learning.
 
-## Dataset source
+## Overview
 
-The primary data consists of California Regional Multiple Listing Service (CRMLS) sold-listing CSV files supplied for the IDX Exchange Data Science internship. The raw files are named `CRMLSSold*.csv` and belong in the `california/` directory. They cover January 2022 through May 2026; the initial combined dataset contains 794,271 rows and 83 columns.
+This project builds a predictive model for estimating the closing price of residential single-family homes in California. The workflow covers data acquisition, cleaning, leakage-aware preprocessing, model benchmarking, geographic feature engineering, gradient boosting optimization, and final evaluation.
 
-The raw listing data is not committed to Git because it is large and may be subject to data-access restrictions. To reproduce the project from the beginning, obtain the CRMLS exports through the internship/data provider and place them as follows:
+The final model is an XGBoost regressor trained on a time-based split, with emphasis on realistic generalization to future transactions rather than random data leakage.
+
+## Project goals
+
+- Predict `ClosePrice` for residential single-family homes in California
+- Compare multiple modeling approaches on a realistic temporal validation setup
+- Engineer spatial and property features that improve predictive power
+- Deliver a deployable, user-facing prediction app for price estimation
+
+## Key results
+
+The final model delivered strong out-of-sample performance on the May 2026 test month:
+
+- R²: 0.8895
+- MAE: $169,190
+- RMSE: $301,127
+- MAPE: 17.30%
+- MdAPE: 9.81%
+
+This result was achieved with a tuned XGBoost model using district-related features and a no-outlier training setup.
+
+## Data
+
+The project uses California Regional Multiple Listing Service (CRMLS) sold-listing data for the period January 2022 through May 2026. The source files live in the `california/` directory and are named like `CRMLSSold*.csv`.
+
+The raw data is not included in the repository because it is large and may be subject to data-access restrictions. To reproduce the full pipeline, obtain the CRMLS export files and place them in the folder structure below:
 
 ```text
 california/
@@ -16,28 +41,46 @@ california/
 └── CRMLSSold202605.csv
 ```
 
-School-district boundary data is loaded during feature engineering from the [California State Geoportal](https://gis.data.ca.gov/api/download/v1/items/b0e3b936426a47ce9d9a2e77e2bb86cc/geojson?layers=0).
+The prediction target is `ClosePrice`. A reference for the main CRMLS fields is provided in [`column_dictionary.md`](column_dictionary.md).
 
-The prediction target is `ClosePrice`. See [`column_dictionary.md`](column_dictionary.md) for descriptions of the principal CRMLS columns.
+## Methodology
 
-## Preprocessing
+The project follows a structured modeling pipeline:
 
-The preprocessing pipeline in `02_preprocessing.ipynb`:
+1. Data ingestion and filtering
+   - Keep only `PropertyType == "Residential"`
+   - Keep only `PropertySubType == "SingleFamilyResidence"`
+   - Remove invalid references to sale price or closing date
 
-1. Combines all `california/CRMLSSold*.csv` files.
-2. Keeps records where `PropertyType == "Residential"` and `PropertySubType == "SingleFamilyResidence"`.
-3. Converts date fields to datetimes and removes records with a missing/non-positive `ClosePrice` or missing `CloseDate`.
-4. Sorts by closing date and removes duplicate `ListingKey` values, keeping the latest record.
-5. Excludes identifiers, target-derived variables, very sparse columns, and extremely high-cardinality categories from the predictors.
-6. Adds missing-value flags, learns numeric medians from the training data only, and fills missing categorical values with `"Unknown"`.
-7. Engineers home age, log-transformed living/lot area, property ratios, and California elementary, high-school, and unified school-district boundary features.
-8. Uses the 12 months immediately before the newest month for training and the newest month for testing. The final split trains on May 2025 through April 2026 and tests on May 2026; the saved no-outlier data contains 128,568 training rows and 11,914 test rows.
-9. Runs the primary model comparison on homes at or below the training set's 99th-percentile sale-price cutoff (approximately $6.42 million). The cutoff is learned from training data and then applied to both sets.
-10. One-hot encodes categorical features with unknown-category handling. Numeric scaling is used for linear regression; tree models use unscaled numeric features.
+2. Preprocessing and leakage control
+   - Sort by closing date and remove duplicate listing records by `ListingKey`
+   - Exclude identifiers and target-derived fields
+   - Remove sparse or high-cardinality variables that would be unstable in production
+   - Add missing-value indicators and learn imputation values from training data only
+   - Encode categorical variables with unknown-category handling
 
-Target-derived fields such as `log_ClosePrice` and reference-only fields such as `price_per_sqft`, `ListPrice`, and `OriginalListPrice` are excluded from model inputs to prevent leakage or unrealistic evaluation.
+3. Feature engineering
+   - Home age
+   - Log-transformed living area and lot size
+   - Property ratios such as bedroom-to-bathroom and lot-to-living-area ratios
+   - School-district boundary features derived from California geographic data
 
-## Models tested
+4. Time-based modeling setup
+   - Train on the 12 months immediately preceding the latest reporting month
+   - Test on the newest month (May 2026)
+   - Filter extreme high-price outliers based on the training distribution
+
+5. Model benchmarking
+   - Linear regression
+   - Decision tree
+   - Random forest
+   - XGBoost
+
+6. Final evaluation
+   - Assess performance using R², MAE, RMSE, MAPE, and MdAPE
+   - Review error behavior across price bands and property segments
+
+## Model performance
 
 | Model / experiment | Test R² | MAE | RMSE |
 |---|---:|---:|---:|
@@ -47,59 +90,76 @@ Target-derived fields such as `log_ClosePrice` and reference-only fields such as
 | Tuned decision tree, no outliers | 0.8143 | $211,439 | $390,298 |
 | Random forest, all prices | 0.0340 | $371,849 | $1,649,257 |
 | Tuned random forest, no outliers | 0.8656 | $173,670 | $332,015 |
-| **Tuned XGBoost, no outliers + district features** | **0.8895** | **$169,190** | **$301,127** |
+| Tuned XGBoost, no outliers + district features | 0.8895 | $169,190 | $301,127 |
 
-The strongest XGBoost configuration uses `max_depth=8`, `learning_rate=0.10`, `n_estimators=300`, the squared-error objective, and `random_state=42`. It was selected using an 80/20 split of the training set and then retrained on all training rows before evaluation on the untouched May 2026 test month.
-
-## Best results
-
-On 11,914 test properties, the final XGBoost model achieved:
-
-- R²: **0.8895**
-- MAE: **$169,190**
-- RMSE: **$301,127**
-- MAPE: **17.30%**
-- Median absolute percentage error (MdAPE): **9.81%**
-
-The median percentage error is notably lower than the mean, indicating that a smaller group of difficult properties produces disproportionately large errors. Results by price band are saved in `metrics_summary.csv`; within-band R² values should not be compared directly with overall R² because each band has a much narrower target range.
+The best-performing configuration used a tuned XGBoost regressor with district features, selected through validation and retrained on the full training set before final evaluation.
 
 ## Repository structure
 
 ```text
-01_exploration.ipynb       Exploratory analysis and distribution checks
-02_preprocessing.ipynb     Cleaning, feature selection, and time split
-03_baseline_model.ipynb    Linear regression baseline
-04_model_comparison.ipynb  Decision tree, random forest, and geo features
-05_advanced_models.ipynb   XGBoost tuning and final predictions
-06_evaluation.ipynb        Overall and price-band evaluation
-column_dictionary.md       Data-field reference
-metrics_summary.csv        Final XGBoost evaluation metrics
-week6_*.npz / week6_*.npy  Saved processed matrices and targets
-week7_*.npy                Saved test targets and XGBoost predictions
+.
+├── 01_exploration.ipynb
+├── 02_preprocessing.ipynb
+├── 03_baseline_model.ipynb
+├── 04_model_comparison.ipynb
+├── 05_advanced_models.ipynb
+├── 06_evaluation.ipynb
+├── app.py
+├── README.md
+├── requirements.txt
+├── column_dictionary.md
+├── metrics_summary.csv
+├── model_metadata.json
+├── model_metadata.pkl
+├── deployment_defaults.pkl
+├── district_preprocessor.pkl
+├── xgboost_model.pkl
+├── california/
+├── train_residential_single_family_week3.csv
+├── test_residential_single_family_week3.csv
+├── train_residential_single_family_week3_no_outliers.csv
+├── test_residential_single_family_week3_no_outliers.csv
+├── week6_X_train_district_processed.npz
+├── week6_X_test_district_processed.npz
+├── week6_y_train.npy
+├── week6_y_test.npy
+├── week7_xgb_predictions.npy
+├── week7_y_test.npy
+├── eda.ipynb
+└── streamlit_app.ipynb
 ```
 
-`eda.ipynb` is an earlier data-quality notebook retained for project history. The numbered notebooks are the main reproducible workflow.
+## Setup
 
-## Re-run the project
-
-Python 3.10 or newer is recommended. From the repository root, create an environment and install the notebook dependencies:
+This project is designed for Python 3.10 or newer.
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
-python -m pip install jupyter pandas numpy scipy scikit-learn matplotlib geopandas shapely xgboost
+python -m pip install -r requirements.txt
 ```
 
-Place the raw CRMLS files in `california/`, then start Jupyter:
+If you are reproducing the notebook workflow from scratch, make sure the source CRMLS files are placed in `california/` before running the notebooks.
+
+## Reproducing the analysis
+
+Run the notebook workflow from the repository root in order:
 
 ```bash
 jupyter lab
 ```
 
-Open and run the numbered notebooks in order from `01_exploration.ipynb` through `06_evaluation.ipynb`. Run each notebook from the repository root because the notebooks use relative paths. `04_model_comparison.ipynb` also needs internet access to download the school-district GeoJSON.
+Then execute the notebooks in sequence:
 
-For a non-interactive run, execute:
+1. `01_exploration.ipynb`
+2. `02_preprocessing.ipynb`
+3. `03_baseline_model.ipynb`
+4. `04_model_comparison.ipynb`
+5. `05_advanced_models.ipynb`
+6. `06_evaluation.ipynb`
+
+For a non-interactive run:
 
 ```bash
 jupyter nbconvert --to notebook --execute --inplace 01_exploration.ipynb --ExecutePreprocessor.timeout=-1
@@ -110,10 +170,49 @@ jupyter nbconvert --to notebook --execute --inplace 05_advanced_models.ipynb --E
 jupyter nbconvert --to notebook --execute --inplace 06_evaluation.ipynb --ExecutePreprocessor.timeout=-1
 ```
 
-Model training—especially the random-forest grid search, spatial joins, and XGBoost search—can take substantial time and memory. If the saved Week 6 matrices already exist, start at `05_advanced_models.ipynb`. If the Week 7 prediction arrays exist, run only `06_evaluation.ipynb` to regenerate `metrics_summary.csv`.
+Note: `04_model_comparison.ipynb` requires internet access for school-district GeoJSON data. If the processed matrices already exist, you can begin at the model-tuning stage instead of rerunning the full pipeline.
 
-## Launching the app
+## Streamlit app
 
-There is currently no Streamlit, Flask, Gradio, or other application entry point in this repository, and the fitted preprocessor/model are not serialized for inference. Therefore, there is no valid app launch command yet. The current deliverable is a notebook-based modeling workflow; use `jupyter lab` to explore and run it.
+A deployable prediction app is included in `app.py`.
 
-To add a deployable app later, save a single fitted preprocessing-and-model pipeline (for example with `joblib`), create an app entry point such as `app.py`, and document its launch command here (for example, `streamlit run app.py`).
+### Run locally
+
+```bash
+streamlit run app.py
+```
+
+Then open the local URL displayed in the terminal, typically:
+
+```text
+http://localhost:8501
+```
+
+### App features
+
+- Input property attributes such as size, bedrooms, bathrooms, year built, and location
+- Capture additional housing characteristics such as flooring, garage, pool, and view status
+- Include school-district details when available
+- Reconstruct engineered features used during model training
+- Produce a sale-price estimate in U.S. dollars
+
+## Deployment artifacts
+
+The app expects the following serialized files to exist in the project root:
+
+- `xgboost_model.pkl`
+- `district_preprocessor.pkl`
+- `model_metadata.pkl`
+- `deployment_defaults.pkl`
+
+These artifacts are produced during the model-training workflow and are required for inference in the app.
+
+## Notes
+
+- `eda.ipynb` is an earlier exploratory notebook retained for project history.
+- The numbered notebooks represent the primary reproducible modeling workflow.
+- The project is intended for portfolio and internship use, with a focus on clean methodology, reproducible ML engineering, and practical deployment readiness.
+
+## Contact
+
+For questions or collaboration opportunities, feel free to reach out through the project repository or professional contact channels.

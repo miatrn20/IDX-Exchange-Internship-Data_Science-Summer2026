@@ -215,4 +215,4 @@ These artifacts are produced during the model-training workflow and are required
 
 ## Contact
 
-For questions or collaboration opportunities, feel free to reach out through the project repository or professional contact channels.
+For questions or collaboration opportunities, feel free to reach out to nnt003@ucsd.edu.

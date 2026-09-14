@@ -6,7 +6,7 @@ A data science internship project focused on predicting residential single-famil
 
 This project builds a predictive model for estimating the closing price of residential single-family homes in California. The workflow covers data acquisition, cleaning, leakage-aware preprocessing, model benchmarking, geographic feature engineering, gradient boosting optimization, and final evaluation.
 
-The final model is an XGBoost regressor trained on a time-based split, with emphasis on realistic generalization to future transactions rather than random data leakage.
+The final model is a CatBoost regressor trained on a time-based split, with emphasis on realistic generalization to future transactions rather than random data leakage.
 
 ## Project goals
 
@@ -19,13 +19,13 @@ The final model is an XGBoost regressor trained on a time-based split, with emph
 
 The final model delivered strong out-of-sample performance on the May 2026 test month:
 
-- R²: 0.8895
-- MAE: $169,190
-- RMSE: $301,127
-- MAPE: 17.30%
-- MdAPE: 9.81%
+- R²: 0.9044
+- MAE: $152,842
+- RMSE: $280,063
+- MAPE: 15.80%
+- MdAPE: 8.60%
 
-This result was achieved with a tuned XGBoost model using district-related features and a no-outlier training setup.
+This result was achieved with a CatBoost model using district-related features and a no-outlier training setup. Validation selected 3,997 boosting iterations.
 
 ## Data
 
@@ -75,6 +75,7 @@ The project follows a structured modeling pipeline:
    - Decision tree
    - Random forest
    - XGBoost
+   - CatBoost
 
 6. Final evaluation
    - Assess performance using R², MAE, RMSE, MAPE, and MdAPE
@@ -91,8 +92,9 @@ The project follows a structured modeling pipeline:
 | Random forest, all prices | 0.0340 | $371,849 | $1,649,257 |
 | Tuned random forest, no outliers | 0.8656 | $173,670 | $332,015 |
 | Tuned XGBoost, no outliers + district features | 0.8895 | $169,190 | $301,127 |
+| CatBoost, no outliers + district features | **0.9044** | **$152,842** | **$280,063** |
 
-The best-performing configuration used a tuned XGBoost regressor with district features, selected through validation and retrained on the full training set before final evaluation.
+The best-performing configuration used a CatBoost regressor with district features, selected through validation and retrained on the full training set before final evaluation.
 
 ## Repository structure
 
@@ -108,12 +110,12 @@ The best-performing configuration used a tuned XGBoost regressor with district f
 ├── README.md
 ├── requirements.txt
 ├── column_dictionary.md
-├── metrics_summary.csv
+├── catboost_metrics_summary.csv
 ├── model_metadata.json
 ├── model_metadata.pkl
 ├── deployment_defaults.pkl
 ├── district_preprocessor.pkl
-├── xgboost_model.pkl
+├── catboost_model.pkl
 ├── california/
 ├── train_residential_single_family_week3.csv
 ├── test_residential_single_family_week3.csv
@@ -123,7 +125,7 @@ The best-performing configuration used a tuned XGBoost regressor with district f
 ├── week6_X_test_district_processed.npz
 ├── week6_y_train.npy
 ├── week6_y_test.npy
-├── week7_xgb_predictions.npy
+├── week7_catboost_predictions.npy
 ├── week7_y_test.npy
 ├── eda.ipynb
 └── streamlit_app.ipynb
@@ -200,7 +202,7 @@ http://localhost:8501
 
 The app expects the following serialized files to exist in the project root:
 
-- `xgboost_model.pkl`
+- `catboost_model.pkl`
 - `district_preprocessor.pkl`
 - `model_metadata.pkl`
 - `deployment_defaults.pkl`
